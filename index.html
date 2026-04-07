@@ -1,0 +1,1668 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#00ff41">
+    <meta name="description" content="Controle de pensão alimentícia - Dívida Shadow">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Dívida Shadow">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="https://img.icons8.com/emoji/192/000000/briefcase-emoji.png">
+    <title>Dívida Shadow</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --neon-green: #00ff41;
+            --neon-red: #ff073a;
+            --neon-yellow: #f7f700;
+            --dark-bg: #0a0a0a;
+            --panel-bg: #111;
+            --scanline: rgba(0, 255, 65, 0.03);
+        }
+
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background: var(--dark-bg);
+            color: var(--neon-green);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(0deg,
+                    transparent,
+                    transparent 2px,
+                    var(--scanline) 2px,
+                    var(--scanline) 4px);
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 0;
+            border-bottom: 2px solid var(--neon-green);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            text-transform: uppercase;
+            letter-spacing: 8px;
+            text-shadow: 0 0 10px var(--neon-green), 0 0 20px var(--neon-green);
+            animation: flicker 3s infinite;
+        }
+
+        @keyframes flicker {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            92% {
+                opacity: 1;
+            }
+
+            93% {
+                opacity: 0.8;
+            }
+
+            94% {
+                opacity: 1;
+            }
+
+            96% {
+                opacity: 0.9;
+            }
+
+            97% {
+                opacity: 1;
+            }
+        }
+
+        .stats-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--neon-green);
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px dashed rgba(0, 255, 65, 0.3);
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #888;
+        }
+
+        .stat-value {
+            color: var(--neon-yellow);
+            text-shadow: 0 0 5px var(--neon-yellow);
+        }
+
+        .stat-value.paid {
+            color: var(--neon-green);
+        }
+
+        .stat-value.pending {
+            color: var(--neon-red);
+            text-shadow: 0 0 5px var(--neon-red);
+        }
+
+        .progress-bar {
+            height: 20px;
+            background: #222;
+            border: 1px solid var(--neon-green);
+            margin-top: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--neon-green);
+            width: 0%;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px var(--neon-green);
+        }
+
+        .installments-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .installment {
+            background: var(--panel-bg);
+            border: 1px solid #333;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .installment:hover {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+
+        .installment.paid {
+            border-color: var(--neon-green);
+            background: rgba(0, 255, 65, 0.1);
+        }
+
+        .installment.current {
+            border-color: var(--neon-yellow);
+            box-shadow: 0 0 15px rgba(247, 247, 0, 0.4);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 15px rgba(247, 247, 0, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 25px rgba(247, 247, 0, 0.6);
+            }
+        }
+
+        .installment-number {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .installment-date {
+            font-size: 0.7rem;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .installment-status {
+            font-size: 0.7rem;
+            margin-top: 5px;
+        }
+
+        .installment.paid .installment-status {
+            color: var(--neon-green);
+        }
+
+        .installment:not(.paid) .installment-status {
+            color: var(--neon-red);
+        }
+
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+
+        button {
+            font-family: 'Share Tech Mono', monospace;
+            background: transparent;
+            border: 2px solid var(--neon-green);
+            color: var(--neon-green);
+            padding: 15px 30px;
+            font-size: 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: var(--neon-green);
+            color: var(--dark-bg);
+            box-shadow: 0 0 20px var(--neon-green);
+        }
+
+        button.danger {
+            border-color: var(--neon-red);
+            color: var(--neon-red);
+        }
+
+        button.danger:hover {
+            background: var(--neon-red);
+            color: var(--dark-bg);
+            box-shadow: 0 0 20px var(--neon-red);
+        }
+
+        .receipt-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .receipt-modal.active {
+            display: flex;
+        }
+
+        .receipt {
+            background: #fff;
+            color: #1a1a1a;
+            padding: 20px;
+            width: 280px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.3;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.4);
+            animation: typeIn 0.5s ease;
+            border: 2px solid #333;
+        }
+
+        @keyframes typeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .receipt-header {
+            text-align: center;
+            border-bottom: 2px dashed #1a1a1a;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .receipt-title {
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 4px;
+        }
+
+        .receipt-divider {
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .receipt-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+        }
+
+        .receipt-label {
+            font-weight: bold;
+        }
+
+        .receipt-footer {
+            border-top: 2px dashed #1a1a1a;
+            padding-top: 15px;
+            margin-top: 20px;
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .close-receipt {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            color: var(--neon-green);
+        }
+
+        .music-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1500;
+        }
+
+        .music-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            font-size: 20px;
+        }
+
+        .music-btn.playing {
+            animation: musicPulse 2s infinite;
+        }
+
+        @keyframes musicPulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 10px var(--neon-green);
+            }
+
+            50% {
+                box-shadow: 0 0 25px var(--neon-green), 0 0 40px var(--neon-green);
+            }
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            justify-content: center;
+        }
+
+        .volume-control input[type="range"] {
+            width: 100px;
+            height: 5px;
+            -webkit-appearance: none;
+            background: #333;
+            border-radius: 5px;
+            outline: none;
+        }
+
+        .volume-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 15px;
+            height: 15px;
+            background: var(--neon-green);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--neon-green);
+        }
+
+        .volume-icon {
+            font-size: 1.2rem;
+        }
+
+        .history-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--neon-green);
+            padding: 20px;
+            margin-bottom: 30px;
+            display: none;
+        }
+
+        .history-panel.active {
+            display: block;
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 255, 65, 0.3);
+        }
+
+        .history-title {
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .history-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            border-bottom: 1px dashed rgba(0, 255, 65, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .history-item:hover {
+            background: rgba(0, 255, 65, 0.1);
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-empty {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+
+        .export-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .export-actions button {
+            padding: 10px 20px;
+            font-size: 0.8rem;
+        }
+
+        .receipt-export-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 2500;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .receipt-export-modal.active {
+            display: flex;
+        }
+
+        .receipts-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .receipt-export {
+            background: #fff;
+            color: #1a1a1a;
+            padding: 20px;
+            width: 280px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.3;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            border: 2px solid #333;
+        }
+
+        .close-export {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            color: var(--neon-green);
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .tab-buttons button {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+        }
+
+        .tab-buttons button.active {
+            background: var(--neon-green);
+            color: var(--dark-bg);
+        }
+
+        .glitch {
+            position: relative;
+        }
+
+        .glitch::before,
+        .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .glitch::before {
+            animation: glitch1 2s infinite linear alternate-reverse;
+            clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%);
+            -webkit-clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%);
+        }
+
+        .glitch::after {
+            animation: glitch2 3s infinite linear alternate-reverse;
+            clip-path: polygon(0 65%, 100% 65%, 100% 100%, 0 100%);
+            -webkit-clip-path: polygon(0 65%, 100% 65%, 100% 100%, 0 100%);
+        }
+
+        @keyframes glitch1 {
+            0% {
+                transform: translate(0);
+            }
+
+            20% {
+                transform: translate(-3px, 3px);
+            }
+
+            40% {
+                transform: translate(-3px, -3px);
+            }
+
+            60% {
+                transform: translate(3px, 3px);
+            }
+
+            80% {
+                transform: translate(3px, -3px);
+            }
+
+            100% {
+                transform: translate(0);
+            }
+        }
+
+        @keyframes glitch2 {
+            0% {
+                transform: translate(0);
+            }
+
+            20% {
+                transform: translate(3px, -3px);
+            }
+
+            40% {
+                transform: translate(3px, 3px);
+            }
+
+            60% {
+                transform: translate(-3px, -3px);
+            }
+
+            80% {
+                transform: translate(-3px, 3px);
+            }
+
+            100% {
+                transform: translate(0);
+            }
+        }
+
+        .payment-effect {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 3000;
+            display: none;
+        }
+
+        .payment-effect.active {
+            display: block;
+        }
+
+        .effect-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .effect-3d {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 4rem;
+            font-weight: bold;
+            color: var(--neon-green);
+            text-shadow:
+                0 0 10px var(--neon-green),
+                0 0 20px var(--neon-green),
+                0 0 40px var(--neon-green),
+                0 0 80px var(--neon-green);
+            animation: threeDRotate 2s ease-out forwards;
+            white-space: nowrap;
+        }
+
+        @keyframes threeDRotate {
+            0% {
+                transform: translate(-50%, -50%) rotateY(0deg) scale(0.5);
+                opacity: 0;
+            }
+
+            20% {
+                transform: translate(-50%, -50%) rotateY(180deg) scale(1.2);
+                opacity: 1;
+            }
+
+            40% {
+                transform: translate(-50%, -50%) rotateY(360deg) scale(1);
+                opacity: 1;
+            }
+
+            60% {
+                transform: translate(-50%, -50%) rotateY(540deg) scale(1.1);
+                opacity: 1;
+            }
+
+            80% {
+                transform: translate(-50%, -50%) rotateY(720deg) scale(1);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: translate(-50%, -50%) rotateY(900deg) scale(2);
+                opacity: 0;
+            }
+        }
+
+        .effect-particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: var(--neon-green);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--neon-green);
+            animation: particleFly 1.5s ease-out forwards;
+        }
+
+        @keyframes particleFly {
+            0% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(var(--tx), var(--ty)) scale(0);
+                opacity: 0;
+            }
+        }
+
+        .receipt-download-btn {
+            margin-top: 15px;
+            width: 100%;
+            padding: 10px;
+            font-size: 0.85rem;
+        }
+
+        .receipt-full-info {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #666;
+            font-size: 11px;
+        }
+
+        .receipt-full-info .row {
+            display: flex;
+            justify-content: space-between;
+            margin: 4px 0;
+        }
+
+        .receipt-full-info .label {
+            color: #666;
+        }
+
+        .receipt-full-info .value {
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1 class="glitch" data-text="DÍVIDA SHADOW">DÍVIDA SHADOW</h1>
+        </header>
+
+        <div class="stats-panel">
+            <div class="stat-row">
+                <span class="stat-label">VALOR TOTAL:</span>
+                <span class="stat-value">R$ 7.000,00</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">VALOR PARCELA:</span>
+                <span class="stat-value">R$ 500,00</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">TOTAL PARCELAS:</span>
+                <span class="stat-value">14</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">PARCELAS PAGAS:</span>
+                <span class="stat-value paid" id="paidCount">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">PARCELAS PENDENTES:</span>
+                <span class="stat-value pending" id="pendingCount">14</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">VALOR PAGO:</span>
+                <span class="stat-value paid" id="paidAmount">R$ 0,00</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">VALOR RESTANTE:</span>
+                <span class="stat-value pending" id="remainingAmount">R$ 7.000,00</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar"></div>
+            </div>
+        </div>
+
+        <div class="installments-grid" id="installmentsGrid"></div>
+
+        <div class="actions">
+            <button onclick="markCurrentPaid()" id="payBtn">Pagar Parcela Atual</button>
+            <button class="danger" onclick="resetAll()">Resetar Tudo</button>
+        </div>
+
+        <div class="tab-buttons">
+            <button onclick="showHistory()" id="historyTabBtn">Ver Histórico</button>
+            <button onclick="exportAllReceipts()" id="exportBtn">Exportar Comprovantes</button>
+        </div>
+
+        <div class="history-panel" id="historyPanel">
+            <div class="history-header">
+                <span class="history-title">Histórico de Pagamentos</span>
+                <button onclick="closeHistory()" style="padding: 5px 15px; font-size: 0.8rem;">✕ Fechar</button>
+            </div>
+            <div class="history-list" id="historyList"></div>
+            <div class="export-actions" style="margin-top: 20px;">
+                <button onclick="exportSpreadsheet()">📊 Baixar Planilha Excel</button>
+                <button onclick="exportAllReceipts()">🧾 Exportar Todos Comprovantes</button>
+                <button onclick="exportData()">💾 Exportar Dados</button>
+                <button onclick="document.getElementById('importFile').click()">📂 Importar Dados</button>
+                <input type="file" id="importFile" style="display:none" onchange="importData(this)">
+            </div>
+        </div>
+    </div>
+
+    <div class="receipt-modal" id="receiptModal">
+        <span class="close-receipt" onclick="closeReceipt()">×</span>
+        <div class="receipt" id="receipt">
+            <div class="receipt-header">
+                <div class="receipt-title">COMPROVANTE DE PAGAMENTO</div>
+                <div>DÍVIDA SHADOW</div>
+            </div>
+            <div class="receipt-divider">══════════════════════</div>
+            <div class="receipt-row">
+                <span class="receipt-label">DATA DO PAGAMENTO:</span>
+                <span id="receiptDate"></span>
+            </div>
+            <div class="receipt-row">
+                <span class="receipt-label">PARCELA:</span>
+                <span id="receiptInstallment"></span>
+            </div>
+            <div class="receipt-row">
+                <span class="receipt-label">VALOR PAGO:</span>
+                <span id="receiptValue"></span>
+            </div>
+            <div class="receipt-row">
+                <span class="receipt-label">PAGADOR:</span>
+                <span>Ygor Rodrigues Pinheiro</span>
+            </div>
+            <div class="receipt-row">
+                <span class="receipt-label">BENEFICIÁRIO:</span>
+                <span>Maria Gabriela</span>
+            </div>
+            <div class="receipt-row">
+                <span class="receipt-label">CNPJ/CPF PAGADOR:</span>
+                <span>456617118-32</span>
+            </div>
+            <div class="receipt-row">
+                <span class="receipt-label">FORMA PAGAMENTO:</span>
+                <span>Transferência</span>
+            </div>
+            <div class="receipt-divider">══════════════════════</div>
+            <div class="receipt-row">
+                <span class="receipt-label">STATUS:</span>
+                <span style="color: green; font-weight: bold;">PAGO ✓</span>
+            </div>
+            <div class="receipt-full-info">
+                <div class="row"><span class="label">Código:</span><span class="value" id="receiptCode"></span></div>
+                <div class="row"><span class="label">Banco:</span><span class="value">PicPay</span></div>
+                <div class="row"><span class="label">Tipo:</span><span class="value">Pix Transferência</span></div>
+            </div>
+            <div class="receipt-footer">
+                <div>══════════════════════</div>
+                <div>DÍVIDA SHADOW</div>
+                <div>A LUTA CONTINUA...</div>
+            </div>
+            <button class="receipt-download-btn" onclick="downloadReceiptPDF()">📥 Baixar PDF</button>
+        </div>
+    </div>
+
+    <div class="receipt-export-modal" id="receiptExportModal">
+        <span class="close-export" onclick="closeExportModal()">×</span>
+        <div style="margin-bottom: 20px;">
+            <button onclick="exportAllReceiptsPDF()" style="padding: 15px 30px;">📥 Baixar Todos em PDF</button>
+        </div>
+        <div class="receipts-container" id="receiptsContainer"></div>
+    </div>
+
+    <div class="payment-effect" id="paymentEffect">
+        <div class="effect-container">
+            <div class="effect-3d" id="effect3d">PAGO!</div>
+            <div class="effect-particles" id="effectParticles"></div>
+        </div>
+    </div>
+
+    <div class="music-controls">
+        <button class="music-btn" id="musicBtn" onclick="toggleMusic()">♫</button>
+        <div class="volume-control">
+            <span class="volume-icon">🔊</span>
+            <input type="range" id="volumeSlider" min="0" max="100" value="30" onchange="setVolume(this.value)">
+        </div>
+    </div>
+
+    <audio id="bgMusic" loop>
+        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mp3">
+    </audio>
+
+    <script>
+        const TOTAL = 7000;
+        const PARCELA = 500;
+        const TOTAL_PARCELAS = 14;
+        const DIA_PAGAMENTO = 7;
+        const DATA_INICIO = new Date(2026, 3, 7);
+
+        let paidInstallments = [];
+        let paymentHistory = [];
+
+        function loadData() {
+            const saved = localStorage.getItem('dividaShadow');
+            if (saved) {
+                const data = JSON.parse(saved);
+                paidInstallments = data.paid || [];
+                paymentHistory = data.history || [];
+            }
+            render();
+        }
+
+        function saveData() {
+            localStorage.setItem('dividaShadow', JSON.stringify({
+                paid: paidInstallments,
+                history: paymentHistory
+            }));
+        }
+
+        function formatDate(date) {
+            return date.toLocaleDateString('pt-BR');
+        }
+
+        function formatDateForExport(date) {
+            const d = new Date(date);
+            return d.toLocaleDateString('pt-BR');
+        }
+
+        function getInstallmentDate(index) {
+            const date = new Date(DATA_INICIO);
+            date.setMonth(date.getMonth() + index);
+            return date;
+        }
+
+        function render() {
+            const grid = document.getElementById('installmentsGrid');
+            grid.innerHTML = '';
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            for (let i = 0; i < TOTAL_PARCELAS; i++) {
+                const date = getInstallmentDate(i);
+                const isPaid = paidInstallments.includes(i);
+                const isCurrent = !isPaid && date <= today && (i === 0 || paidInstallments.includes(i - 1));
+
+                const div = document.createElement('div');
+                div.className = `installment ${isPaid ? 'paid' : ''} ${isCurrent ? 'current' : ''}`;
+                div.innerHTML = `
+                    <div class="installment-number">${i + 1}/${TOTAL_PARCELAS}</div>
+                    <div class="installment-date">${formatDate(date)}</div>
+                    <div class="installment-status">${isPaid ? 'PAGO' : 'PENDENTE'}</div>
+                `;
+                div.onclick = () => toggleInstallment(i);
+                grid.appendChild(div);
+            }
+
+            const paid = paidInstallments.length;
+            const pending = TOTAL_PARCELAS - paid;
+            const paidAmt = paid * PARCELA;
+            const remaining = TOTAL - paidAmt;
+
+            document.getElementById('paidCount').textContent = paid;
+            document.getElementById('pendingCount').textContent = pending;
+            document.getElementById('paidAmount').textContent = `R$ ${paidAmt.toLocaleString('pt-BR')},00`;
+            document.getElementById('remainingAmount').textContent = `R$ ${remaining.toLocaleString('pt-BR')},00`;
+            document.getElementById('progressBar').style.width = `${(paid / TOTAL_PARCELAS) * 100}%`;
+
+            const currentBtn = document.getElementById('payBtn');
+            const nextUnpaid = paidInstallments.length;
+            if (nextUnpaid >= TOTAL_PARCELAS) {
+                currentBtn.textContent = 'TUDO PAGO!';
+                currentBtn.disabled = true;
+            } else {
+                currentBtn.textContent = `Pagar Parcela ${nextUnpaid + 1}`;
+                currentBtn.disabled = false;
+            }
+        }
+
+        function toggleInstallment(index) {
+            const idx = paidInstallments.indexOf(index);
+            if (idx > -1) {
+                paidInstallments.splice(idx, 1);
+            } else {
+                paidInstallments.push(index);
+                paidInstallments.sort((a, b) => a - b);
+                addPaymentToHistory(index);
+                showReceipt(index);
+            }
+            saveData();
+            render();
+        }
+
+        function markCurrentPaid() {
+            const nextUnpaid = paidInstallments.length;
+            if (nextUnpaid < TOTAL_PARCELAS) {
+                paidInstallments.push(nextUnpaid);
+                addPaymentToHistory(nextUnpaid);
+                saveData();
+                showReceipt(nextUnpaid);
+                render();
+            }
+        }
+
+        function addPaymentToHistory(index) {
+            paymentHistory.push({
+                installmentNumber: index + 1,
+                installmentDate: getInstallmentDate(index).toISOString(),
+                paymentDate: new Date().toISOString(),
+                amount: PARCELA,
+                beneficiary: 'Maria Gabriela'
+            });
+        }
+
+        function showReceipt(index) {
+            document.getElementById('receiptDate').textContent = formatDate(new Date());
+            document.getElementById('receiptInstallment').textContent = `${index + 1} de ${TOTAL_PARCELAS}`;
+            document.getElementById('receiptValue').textContent = `R$ ${PARCELA.toLocaleString('pt-BR')},00`;
+            document.getElementById('receiptModal').classList.add('active');
+        }
+
+        function closeReceipt() {
+            document.getElementById('receiptModal').classList.remove('active');
+        }
+
+        function resetAll() {
+            if (confirm('Tem certeza que deseja resetar todos os pagamentos?')) {
+                paidInstallments = [];
+                paymentHistory = [];
+                saveData();
+                render();
+            }
+        }
+
+        let musicPlaying = false;
+        const audio = document.getElementById('bgMusic');
+        audio.volume = 0.3;
+
+        function toggleMusic() {
+            const btn = document.getElementById('musicBtn');
+            if (musicPlaying) {
+                audio.pause();
+                btn.classList.remove('playing');
+            } else {
+                audio.play().catch(() => { });
+                btn.classList.add('playing');
+            }
+            musicPlaying = !musicPlaying;
+        }
+
+        function setVolume(value) {
+            audio.volume = value / 100;
+        }
+
+        function showHistory() {
+            const panel = document.getElementById('historyPanel');
+            const list = document.getElementById('historyList');
+
+            if (paymentHistory.length === 0) {
+                list.innerHTML = '<div class="history-empty">Nenhum pagamento registrado ainda.</div>';
+            } else {
+                list.innerHTML = paymentHistory.map(payment => `
+                    <div class="history-item">
+                        <div>
+                            <div style="color: var(--neon-yellow);">Parcela ${payment.installmentNumber}/${TOTAL_PARCELAS}</div>
+                            <div style="font-size: 0.8rem; color: #666;">Vencimento: ${formatDateForExport(payment.installmentDate)}</div>
+                            <div style="font-size: 0.75rem; color: #555;">Pagador: Ygor Rodrigues Pinheiro</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="color: var(--neon-green);">R$ ${PARCELA.toLocaleString('pt-BR')},00</div>
+                            <div style="font-size: 0.8rem; color: #666;">Pago: ${formatDateForExport(payment.paymentDate)}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            panel.classList.add('active');
+        }
+
+        function closeHistory() {
+            document.getElementById('historyPanel').classList.remove('active');
+        }
+
+        function exportSpreadsheet() {
+            if (paymentHistory.length === 0) {
+                alert('Nenhum pagamento para exportar!');
+                return;
+            }
+
+            const headers = ['Parcela', 'Data Vencimento', 'Data Pagamento', 'Valor', 'Pagador', 'Beneficiario', 'CPF', 'Banco', 'Forma Pagamento', 'Codigo'];
+            const rows = paymentHistory.map(payment => [
+                payment.installmentNumber,
+                formatDateForExport(payment.installmentDate),
+                formatDateForExport(payment.paymentDate),
+                PARCELA,
+                'Ygor Rodrigues Pinheiro',
+                'Maria Gabriela',
+                '456617118-32',
+                'Nubank',
+                'Pix Transferência',
+                generateReceiptCode(payment)
+            ]);
+
+            let csv = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csv += row.join(',') + '\n';
+            });
+
+            const totalRow = ['', '', 'TOTAL:', paymentHistory.length * PARCELA, '', '', '', '', '', ''];
+            csv += '\n' + totalRow.join(',');
+
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `divida_shadow_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        function exportAllReceipts() {
+            if (paymentHistory.length === 0) {
+                alert('Nenhum pagamento para exportar!');
+                return;
+            }
+
+            const container = document.getElementById('receiptsContainer');
+            container.innerHTML = paymentHistory.map((payment, idx) => `
+                <div class="receipt-export" id="receipt-${idx}">
+                    <div class="receipt-header">
+                        <div class="receipt-title">COMPROVANTE DE PAGAMENTO</div>
+                        <div>DÍVIDA SHADOW</div>
+                    </div>
+                    <div class="receipt-divider">══════════════════════</div>
+                    <div class="receipt-row">
+                        <span class="receipt-label">DATA DO PAGAMENTO:</span>
+                        <span>${formatDateForExport(payment.paymentDate)}</span>
+                    </div>
+                    <div class="receipt-row">
+                        <span class="receipt-label">PARCELA:</span>
+                        <span>${payment.installmentNumber} de ${TOTAL_PARCELAS}</span>
+                    </div>
+                    <div class="receipt-row">
+                        <span class="receipt-label">VALOR PAGO:</span>
+                        <span>R$ ${PARCELA.toLocaleString('pt-BR')},00</span>
+                    </div>
+                    <div class="receipt-row">
+                        <span class="receipt-label">PAGADOR:</span>
+                        <span>Ygor Rodrigues Pinheiro</span>
+                    </div>
+                    <div class="receipt-row">
+                        <span class="receipt-label">BENEFICIÁRIO:</span>
+                        <span>Maria Gabriela</span>
+                    </div>
+                    <div class="receipt-row">
+                        <span class="receipt-label">CNPJ/CPF PAGADOR:</span>
+                        <span>456617118-32</span>
+                    </div>
+                    <div class="receipt-row">
+                        <span class="receipt-label">FORMA PAGAMENTO:</span>
+                        <span>Transferência</span>
+                    </div>
+                    <div class="receipt-divider">══════════════════════</div>
+                    <div class="receipt-row">
+                        <span class="receipt-label">STATUS:</span>
+                        <span style="color: green; font-weight: bold;">PAGO ✓</span>
+                    </div>
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #666; font-size: 11px;">
+                        <div class="receipt-row"><span class="receipt-label" style="color:#666;font-size:11px;">Código:</span><span style="font-weight:bold;font-size:11px;">${generateReceiptCode(payment)}</span></div>
+                        <div class="receipt-row"><span class="receipt-label" style="color:#666;font-size:11px;">Banco:</span><span style="font-weight:bold;font-size:11px;">Nubank</span></div>
+                        <div class="receipt-row"><span class="receipt-label" style="color:#666;font-size:11px;">Tipo:</span><span style="font-weight:bold;font-size:11px;">Pix Transferência</span></div>
+                    </div>
+                    <div class="receipt-footer">
+                        <div>══════════════════════</div>
+                        <div>DÍVIDA SHADOW</div>
+                        <div>A LUTA CONTINUA...</div>
+                    </div>
+                    <button class="receipt-download-btn" onclick="downloadSingleReceiptPDF(${idx})">📥 Baixar PDF</button>
+                </div>
+            `).join('');
+
+            document.getElementById('receiptExportModal').classList.add('active');
+        }
+
+        function downloadSingleReceiptPDF(idx) {
+            const payment = paymentHistory[idx];
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(18);
+            doc.text('COMPROVANTE DE PAGAMENTO', 105, 20, { align: 'center' });
+            doc.setFontSize(12);
+            doc.text('DÍVIDA SHADOW', 105, 28, { align: 'center' });
+
+            doc.setLineWidth(0.5);
+            doc.line(20, 32, 190, 32);
+
+            doc.setFontSize(11);
+            let y = 45;
+
+            doc.text('DATA DO PAGAMENTO:', 25, y);
+            doc.text(formatDateForExport(payment.paymentDate), 90, y);
+            y += 8;
+
+            doc.text('PARCELA:', 25, y);
+            doc.text(`${payment.installmentNumber} de ${TOTAL_PARCELAS}`, 90, y);
+            y += 8;
+
+            doc.text('VALOR PAGO:', 25, y);
+            doc.text(`R$ ${PARCELA.toLocaleString('pt-BR')},00`, 90, y);
+            y += 8;
+
+            doc.text('PAGADOR:', 25, y);
+            doc.text('Ygor Rodrigues Pinheiro', 90, y);
+            y += 8;
+
+            doc.text('BENEFICIÁRIO:', 25, y);
+            doc.text('Maria Gabriela', 90, y);
+            y += 8;
+
+            doc.text('CNPJ/CPF PAGADOR:', 25, y);
+            doc.text('456617118-32', 90, y);
+            y += 8;
+
+            doc.text('FORMA PAGAMENTO:', 25, y);
+            doc.text('Transferência', 90, y);
+            y += 8;
+
+            doc.line(20, y, 190, y);
+            y += 10;
+
+            doc.setFontSize(14);
+            doc.setTextColor(0, 128, 0);
+            doc.text('PAGO ✓', 105, y, { align: 'center' });
+            doc.setTextColor(0, 0, 0);
+            y += 15;
+
+            doc.setFontSize(9);
+            const code = generateReceiptCode(payment);
+            doc.text(`Código: ${code}`, 25, y);
+            y += 6;
+            doc.text('Banco: Nubank', 25, y);
+            y += 6;
+            doc.text('Tipo: Pix Transferência', 25, y);
+            y += 15;
+
+            doc.line(20, y, 190, y);
+            y += 10;
+
+            doc.setFontSize(10);
+            doc.text('DÍVIDA SHADOW', 105, y, { align: 'center' });
+            y += 5;
+            doc.text('A LUTA CONTINUA...', 105, y, { align: 'center' });
+
+            doc.save(`comprovante_divida_shadow_parcela_${payment.installmentNumber}.pdf`);
+        }
+
+        let currentReceiptData = null;
+
+        function generateReceiptCode(payment) {
+            const date = new Date(payment.paymentDate);
+            const code = `DS${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}${String(payment.installmentNumber).padStart(2, '0')}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+            return code;
+        }
+
+        function showReceipt(index) {
+            const payment = {
+                installmentNumber: index + 1,
+                paymentDate: new Date().toISOString()
+            };
+            const code = generateReceiptCode(payment);
+
+            document.getElementById('receiptDate').textContent = formatDate(new Date());
+            document.getElementById('receiptInstallment').textContent = `${index + 1} de ${TOTAL_PARCELAS}`;
+            document.getElementById('receiptValue').textContent = `R$ ${PARCELA.toLocaleString('pt-BR')},00`;
+            document.getElementById('receiptCode').textContent = code;
+
+            currentReceiptData = {
+                paymentDate: formatDate(new Date()),
+                installment: `${index + 1} de ${TOTAL_PARCELAS}`,
+                value: `R$ ${PARCELA.toLocaleString('pt-BR')},00`,
+                payer: 'Ygor Rodrigues Pinheiro',
+                beneficiary: 'Maria Gabriela',
+                cpf: '456617118-32',
+                bank: 'PicPay',
+                type: 'Transferência PIX',
+                code: code
+            };
+
+            document.getElementById('receiptModal').classList.add('active');
+            playPaymentEffect();
+        }
+
+        function playPaymentEffect() {
+            const effect = document.getElementById('paymentEffect');
+            const particles = document.getElementById('effectParticles');
+
+            effect.classList.add('active');
+            particles.innerHTML = '';
+
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                const angle = (i / 30) * Math.PI * 2;
+                const distance = 200 + Math.random() * 300;
+                particle.style.setProperty('--tx', `${Math.cos(angle) * distance}px`);
+                particle.style.setProperty('--ty', `${Math.sin(angle) * distance}px`);
+                particle.style.left = '50%';
+                particle.style.top = '50%';
+                particle.style.animationDelay = `${Math.random() * 0.3}s`;
+                particles.appendChild(particle);
+            }
+
+            setTimeout(() => {
+                effect.classList.remove('active');
+            }, 2500);
+        }
+
+        function downloadReceiptPDF() {
+            if (!currentReceiptData) return;
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: [80, 150]
+            });
+
+            doc.setFillColor(255, 255, 255);
+            doc.rect(0, 0, 80, 150, 'F');
+
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.4);
+            doc.rect(2, 2, 76, 146);
+            doc.rect(3, 3, 74, 144);
+
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(14);
+            doc.setFont('courier', 'bold');
+            doc.text('COMPROVANTE', 40, 12, { align: 'center' });
+
+            doc.setFontSize(10);
+            doc.setFont('courier', 'normal');
+            doc.text('===========================', 40, 17, { align: 'center' });
+            doc.text('DÍVIDA SHADOW', 40, 22, { align: 'center' });
+
+            doc.setFontSize(10);
+            let y = 32;
+
+            doc.text('DATA:', 5, y);
+            doc.text(currentReceiptData.paymentDate, 35, y);
+            y += 7;
+
+            doc.text('PARCELA:', 5, y);
+            doc.text(currentReceiptData.installment, 35, y);
+            y += 7;
+
+            doc.text('VALOR:', 5, y);
+            doc.text(currentReceiptData.value, 35, y);
+            y += 7;
+
+            doc.text('PAGADOR:', 5, y);
+            doc.text(currentReceiptData.payer.substring(0, 22), 35, y);
+            y += 7;
+
+            doc.text('BENEFICIARIO:', 5, y);
+            doc.text(currentReceiptData.beneficiary.substring(0, 22), 35, y);
+            y += 7;
+
+            doc.text('CPF:', 5, y);
+            doc.text(currentReceiptData.cpf, 35, y);
+            y += 7;
+
+            doc.text('FORMA:', 5, y);
+            doc.text(currentReceiptData.type, 35, y);
+            y += 7;
+
+            doc.text('BANCO:', 5, y);
+            doc.text(currentReceiptData.bank, 35, y);
+            y += 8;
+
+            doc.text('===========================', 40, y, { align: 'center' });
+            y += 6;
+
+            doc.setFontSize(14);
+            doc.setFont('courier', 'bold');
+            doc.text('PAGO', 40, y, { align: 'center' });
+            y += 8;
+
+            doc.setFontSize(10);
+            doc.setFont('courier', 'normal');
+            doc.text('===========================', 40, y, { align: 'center' });
+            y += 6;
+
+            doc.text(`COD: ${currentReceiptData.code}`, 40, y, { align: 'center' });
+            y += 5;
+            doc.text(currentReceiptData.bank, 40, y, { align: 'center' });
+            y += 8;
+
+            doc.text('===========================', 40, y, { align: 'center' });
+            y += 5;
+            doc.setFontSize(11);
+            doc.text('DÍVIDA SHADOW', 40, y, { align: 'center' });
+            y += 5;
+            doc.setFontSize(9);
+            doc.setFont('courier', 'italic');
+            doc.text('A LUTA CONTINUA...', 40, y, { align: 'center' });
+
+            doc.save(`comprovante_${currentReceiptData.code}.pdf`);
+        }
+
+        function exportAllReceiptsPDF() {
+            if (paymentHistory.length === 0) {
+                alert('Nenhum pagamento para exportar!');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: [80, 150]
+            });
+
+            paymentHistory.forEach((payment, idx) => {
+                if (idx > 0) doc.addPage();
+
+                doc.setFillColor(255, 255, 255);
+                doc.rect(0, 0, 80, 150, 'F');
+
+                doc.setDrawColor(0, 0, 0);
+                doc.setLineWidth(0.4);
+                doc.rect(2, 2, 76, 146);
+                doc.rect(3, 3, 74, 144);
+
+                doc.setTextColor(0, 0, 0);
+                doc.setFontSize(14);
+                doc.setFont('courier', 'bold');
+                doc.text('COMPROVANTE', 40, 12, { align: 'center' });
+
+                doc.setFontSize(10);
+                doc.setFont('courier', 'normal');
+                doc.text('===========================', 40, 17, { align: 'center' });
+                doc.text('DÍVIDA SHADOW', 40, 22, { align: 'center' });
+
+                doc.setFontSize(10);
+                let y = 32;
+
+                doc.text('DATA:', 5, y);
+                doc.text(formatDateForExport(payment.paymentDate), 35, y);
+                y += 7;
+
+                doc.text('PARCELA:', 5, y);
+                doc.text(`${payment.installmentNumber} de ${TOTAL_PARCELAS}`, 35, y);
+                y += 7;
+
+                doc.text('VALOR:', 5, y);
+                doc.text(`R$ ${PARCELA.toLocaleString('pt-BR')},00`, 35, y);
+                y += 7;
+
+                doc.text('PAGADOR:', 5, y);
+                doc.text('Ygor Rodrigues Pinhei'.substring(0, 22), 35, y);
+                y += 7;
+
+                doc.text('BENEFICIARIO:', 5, y);
+                doc.text('Maria Gabriela'.substring(0, 22), 35, y);
+                y += 7;
+
+                doc.text('CPF:', 5, y);
+                doc.text('456617118-32', 35, y);
+                y += 7;
+
+                doc.text('FORMA:', 5, y);
+                doc.text('Transferencia PIX', 35, y);
+                y += 7;
+
+                doc.text('BANCO:', 5, y);
+                doc.text('PicPay', 35, y);
+                y += 8;
+
+                doc.text('===========================', 40, y, { align: 'center' });
+                y += 6;
+
+                doc.setFontSize(14);
+                doc.setFont('courier', 'bold');
+                doc.text('PAGO', 40, y, { align: 'center' });
+                y += 8;
+
+                doc.setFontSize(10);
+                doc.setFont('courier', 'normal');
+                doc.text('===========================', 40, y, { align: 'center' });
+                y += 6;
+
+                const code = generateReceiptCode(payment);
+                doc.text(`COD: ${code}`, 40, y, { align: 'center' });
+                y += 5;
+                doc.text('PicPay', 40, y, { align: 'center' });
+                y += 8;
+
+                doc.text('===========================', 40, y, { align: 'center' });
+                y += 5;
+                doc.setFontSize(11);
+                doc.text('DÍVIDA SHADOW', 40, y, { align: 'center' });
+                y += 5;
+                doc.setFontSize(9);
+                doc.setFont('courier', 'italic');
+                doc.text('A LUTA CONTINUA...', 40, y, { align: 'center' });
+            });
+
+            doc.save(`comprovantes_divida_shadow_${new Date().toISOString().split('T')[0]}.pdf`);
+        }
+
+        function downloadSingleReceiptPDF(idx) {
+            const payment = paymentHistory[idx];
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: [80, 150]
+            });
+
+            doc.setFillColor(255, 255, 255);
+            doc.rect(0, 0, 80, 150, 'F');
+
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.4);
+            doc.rect(2, 2, 76, 146);
+            doc.rect(3, 3, 74, 144);
+
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(14);
+            doc.setFont('courier', 'bold');
+            doc.text('COMPROVANTE', 40, 12, { align: 'center' });
+
+            doc.setFontSize(10);
+            doc.setFont('courier', 'normal');
+            doc.text('===========================', 40, 17, { align: 'center' });
+            doc.text('DÍVIDA SHADOW', 40, 22, { align: 'center' });
+
+            doc.setFontSize(10);
+            let y = 32;
+
+            doc.text('DATA:', 5, y);
+            doc.text(formatDateForExport(payment.paymentDate), 35, y);
+            y += 7;
+
+            doc.text('PARCELA:', 5, y);
+            doc.text(`${payment.installmentNumber} de ${TOTAL_PARCELAS}`, 35, y);
+            y += 7;
+
+            doc.text('VALOR:', 5, y);
+            doc.text(`R$ ${PARCELA.toLocaleString('pt-BR')},00`, 35, y);
+            y += 7;
+
+            doc.text('PAGADOR:', 5, y);
+            doc.text('Ygor Rodrigues Pinhei'.substring(0, 22), 35, y);
+            y += 7;
+
+            doc.text('BENEFICIARIO:', 5, y);
+            doc.text('Maria Gabriela'.substring(0, 22), 35, y);
+            y += 7;
+
+            doc.text('CPF:', 5, y);
+            doc.text('456617118-32', 35, y);
+            y += 7;
+
+            doc.text('FORMA:', 5, y);
+            doc.text('Transferencia PIX', 35, y);
+            y += 7;
+
+            doc.text('BANCO:', 5, y);
+            doc.text('PicPay', 35, y);
+            y += 8;
+
+            doc.text('===========================', 40, y, { align: 'center' });
+            y += 6;
+
+            doc.setFontSize(14);
+            doc.setFont('courier', 'bold');
+            doc.text('PAGO', 40, y, { align: 'center' });
+            y += 8;
+
+            doc.setFontSize(10);
+            doc.setFont('courier', 'normal');
+            doc.text('===========================', 40, y, { align: 'center' });
+            y += 6;
+
+            const code = generateReceiptCode(payment);
+            doc.text(`COD: ${code}`, 40, y, { align: 'center' });
+            y += 5;
+            doc.text('PicPay', 40, y, { align: 'center' });
+            y += 8;
+
+            doc.text('===========================', 40, y, { align: 'center' });
+            y += 5;
+            doc.setFontSize(11);
+            doc.text('DÍVIDA SHADOW', 40, y, { align: 'center' });
+            y += 5;
+            doc.setFontSize(9);
+            doc.setFont('courier', 'italic');
+            doc.text('A LUTA CONTINUA...', 40, y, { align: 'center' });
+
+            doc.save(`comprovante_parcela_${payment.installmentNumber}.pdf`);
+        }
+
+        function closeExportModal() {
+            document.getElementById('receiptExportModal').classList.remove('active');
+        }
+
+        function exportData() {
+            const data = {
+                paid: paidInstallments,
+                history: paymentHistory,
+                exportedAt: new Date().toISOString()
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `divida_shadow_backup_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+        }
+
+        function importData(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.paid && data.history) {
+                        paidInstallments = data.paid;
+                        paymentHistory = data.history;
+                        saveData();
+                        render();
+                        alert('Dados importados com sucesso!');
+                    } else {
+                        alert('Arquivo inválido!');
+                    }
+                } catch (err) {
+                    alert('Erro ao importar arquivo!');
+                }
+            };
+            reader.readAsText(file);
+            input.value = '';
+        }
+
+        document.getElementById('receiptModal').addEventListener('click', (e) => {
+            if (e.target.id === 'receiptModal') {
+                closeReceipt();
+            }
+        });
+
+        loadData();
+    </script>
+</body>
+
+</html>
